@@ -35,12 +35,14 @@ import {
 import { QuantizeOptions } from '../../codecs/imagequant/processor-meta';
 import { ResizeOptions } from '../../codecs/resize/processor-meta';
 import { PreprocessorState } from '../../codecs/preprocessors';
-import { SourceImage } from '../App';
+import { SourceImage } from '../compress';
 import Checkbox from '../checkbox';
 import Expander from '../expander';
 import Select from '../select';
 
-const encoderOptionsComponentMap = {
+const encoderOptionsComponentMap: {
+  [x: string]: (new (...args: any[]) => Component<any, any>) | undefined;
+} = {
   [identity.type]: undefined,
   [optiPNG.type]: OptiPNGEncoderOptions,
   [mozJPEG.type]: MozJpegEncoderOptions,
@@ -81,7 +83,7 @@ export default class Options extends Component<Props, State> {
   }
 
   @bind
-  onEncoderTypeChange(event: Event) {
+  private onEncoderTypeChange(event: Event) {
     const el = event.currentTarget as HTMLSelectElement;
 
     // The select element only has values matching encoder types,
@@ -91,7 +93,7 @@ export default class Options extends Component<Props, State> {
   }
 
   @bind
-  onPreprocessorEnabledChange(event: Event) {
+  private onPreprocessorEnabledChange(event: Event) {
     const el = event.currentTarget as HTMLInputElement;
     const preprocessor = el.name.split('.')[0] as keyof PreprocessorState;
 
@@ -101,14 +103,14 @@ export default class Options extends Component<Props, State> {
   }
 
   @bind
-  onQuantizerOptionsChange(opts: QuantizeOptions) {
+  private onQuantizerOptionsChange(opts: QuantizeOptions) {
     this.props.onPreprocessorOptionsChange(
       cleanMerge(this.props.preprocessorState, 'quantizer', opts),
     );
   }
 
   @bind
-  onResizeOptionsChange(opts: ResizeOptions) {
+  private onResizeOptionsChange(opts: ResizeOptions) {
     this.props.onPreprocessorOptionsChange(
       cleanMerge(this.props.preprocessorState, 'resize', opts),
     );
@@ -144,7 +146,7 @@ export default class Options extends Component<Props, State> {
                 {preprocessorState.resize.enabled ?
                   <ResizeOptionsComponent
                     isVector={Boolean(source && source.vectorImage)}
-                    aspect={source ? (source.data.width / source.data.height) : 1}
+                    aspect={source ? source.processed.width / source.processed.height : 1}
                     options={preprocessorState.resize}
                     onChange={this.onResizeOptionsChange}
                   />

@@ -9,8 +9,7 @@ import '../../lib/SnackBar';
 import Intro from '../intro';
 import '../custom-els/LoadingSpinner';
 
-// This is imported for TypeScript only. It isn't used.
-import Compress from '../compress';
+const ROUTE_EDITOR = '/editor';
 
 const compressPromise = import(
   /* webpackChunkName: "main-app" */
@@ -21,21 +20,21 @@ const offlinerPromise = import(
   '../../lib/offliner',
 );
 
-export interface SourceImage {
-  file: File | Fileish;
-  data: ImageData;
-  vectorImage?: HTMLImageElement;
+function back() {
+  window.history.back();
 }
 
 interface Props {}
 
 interface State {
   file?: File | Fileish;
-  Compress?: typeof Compress;
+  isEditorOpen: Boolean;
+  Compress?: typeof import('../compress').default;
 }
 
 export default class App extends Component<Props, State> {
   state: State = {
+    isEditorOpen: false,
     file: undefined,
     Compress: undefined,
   };
@@ -57,22 +56,33 @@ export default class App extends Component<Props, State> {
     if (process.env.NODE_ENV === 'development') {
       this.setState(window.STATE);
       const oldCDU = this.componentDidUpdate;
-      this.componentDidUpdate = (props, state) => {
-        if (oldCDU) oldCDU.call(this, props, state);
+      this.componentDidUpdate = (props, state, prev) => {
+        if (oldCDU) oldCDU.call(this, props, state, prev);
         window.STATE = this.state;
       };
     }
+
+    // Since iOS 10, Apple tries to prevent disabling pinch-zoom. This is great in theory, but
+    // really breaks things on Squoosh, as you can easily end up zooming the UI when you mean to
+    // zoom the image. Once you've done this, it's really difficult to undo. Anyway, this seems to
+    // prevent it.
+    document.body.addEventListener('gesturestart', (event) => {
+      event.preventDefault();
+    });
+
+    window.addEventListener('popstate', this.onPopState);
   }
 
   @bind
-  private onFileDrop(event: FileDropEvent) {
-    const { file } = event;
+  private onFileDrop({ file }: FileDropEvent) {
     if (!file) return;
+    this.openEditor();
     this.setState({ file });
   }
 
   @bind
   private onIntroPickFile(file: File | Fileish) {
+    this.openEditor();
     this.setState({ file });
   }
 
@@ -83,18 +93,25 @@ export default class App extends Component<Props, State> {
   }
 
   @bind
-  private onBack() {
-    this.setState({ file: undefined });
+  private onPopState() {
+    this.setState({ isEditorOpen: location.pathname === ROUTE_EDITOR });
   }
 
-  render({}: Props, { file, Compress }: State) {
+  @bind
+  private openEditor() {
+    if (this.state.isEditorOpen) return;
+    history.pushState(null, '', ROUTE_EDITOR);
+    this.setState({ isEditorOpen: true });
+  }
+
+  render({}: Props, { file, isEditorOpen, Compress }: State) {
     return (
       <div id="app" class={style.app}>
         <file-drop accept="image/*" onfiledrop={this.onFileDrop} class={style.drop}>
-          {(!file)
+          {!isEditorOpen
             ? <Intro onFile={this.onIntroPickFile} showSnack={this.showSnack} />
             : (Compress)
-              ? <Compress file={file} showSnack={this.showSnack} onBack={this.onBack} />
+              ? <Compress file={file!} showSnack={this.showSnack} onBack={back} />
               : <loading-spinner class={style.appLoader}/>
           }
           <snack-bar ref={linkRef(this, 'snackbar')} />
